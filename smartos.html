@@ -1,0 +1,463 @@
+<!doctype html>
+<!--
+SmartOS Changelog made pretty
+
+Author: Dave Eddy <dave@daveeddy.com>
+License: MIT
+-->
+<html>
+	<head>
+		<title>SmartOS Changelog</title>
+		<script>
+			// URI (in the case, relative to our domain) where SmartOS releases
+			// are stored in Manta
+			var BASE_URI = '/Joyent_Dev/public/SmartOS';
+
+			// The base repository URL where all repos in the SmartOS Changelogs can be found
+			var BASE_REPO = 'https://github.com/joyent';
+
+			// The URI to use for bug/issue numbers extracted from commit messages
+			var BUG_URI = 'http://smartos.org/bugview/:bug';
+
+			// A Map of repo names in the Changelog, to the repo name found on GitHub.
+			// At the time of this writing, the repo in the changelog is "illumos", but on
+			// GitHub it is called "illumos-joyent"
+			var REPO_MAP = {
+				'illumos': 'illumos-joyent',
+			};
+
+			/**
+			 * simple function to make a request and get the text back
+			 *
+			 * ex:
+			 * request('/foobar.txt', function(err, text) {
+			 *   console.log(text);
+			 * });
+			 */
+			function request(uri, method, data, cb) {
+				if (typeof method === 'function') {
+					cb = method;
+					method = 'GET';
+				}
+
+				if (typeof data === 'function') {
+					cb = data;
+					data = undefined;
+				}
+
+				var xhr = new XMLHttpRequest();
+				xhr.onreadystatechange = function() {
+					var e;
+
+					if (xhr.readyState !== 4)
+						return;
+
+					if (xhr.status !== 200) {
+						e = new Error('request failed');
+						e.xhr = xhr;
+						cb(e);
+						return;
+					}
+
+					cb(null, xhr.responseText);
+				};
+
+				xhr.open(method, uri, true);
+				xhr.send(data);
+
+				return xhr;
+			}
+
+			/**
+			 * Load a SmartOS Changelog given both the name of the release, and
+			 * the URL to the changelog.txt file
+			 *
+			 * This function returns nothing, and creates, basically, the majority
+			 * of the HTML site seen
+			 */
+			function load_changelog(name, url) {
+				request(url, function(err, txt) {
+					var a;
+
+					commits.innerHTML = '';
+					var h1 = document.createElement('h1');
+					a = document.createElement('a');
+					a.textContent = name;
+					a.target = 'new';
+					a.href = BASE_URI + '/' + name;
+					h1.appendChild(a);
+					commits.appendChild(h1);
+
+					if (err) {
+						var p = document.createElement('p');
+						p.textContent = 'failed to load ' + url + ': ' + err.message;
+						commits.appendChild(p);
+						return;
+					}
+
+					var d = parse_commits(txt);
+
+					var div = document.createElement('div');
+					div.className = 'raw-changelog';
+					a = document.createElement('a');
+					a.href = url;
+					a.target = 'new';
+					a.textContent = '(raw changelog)';
+					div.appendChild(a);
+					commits.appendChild(div);
+
+					Object.keys(d).forEach(function(repo) {
+						if (!d[repo].length)
+							return;
+
+						var h2 = document.createElement('h2');
+						a = document.createElement('a');
+						a.target = 'new';
+						a.href = BASE_REPO + '/' + (REPO_MAP[repo] || repo);
+						a.textContent = repo;
+						h2.appendChild(a);
+						commits.appendChild(h2);
+
+						for (var i = 0; i < d[repo].length; i++) {
+							var o = d[repo][i];
+							var p = document.createElement('p');
+							p.className = 'commit';
+							a = document.createElement('a');
+							a.href = BASE_REPO + '/' + (REPO_MAP[repo] || repo) + '/commit/' + o.hash;
+							a.target = 'new';
+							var span;
+							span = document.createElement('span');
+							span.className = 'hash';
+							span.textContent = '(' +  o.hash.substr(0, 8) + ')';
+							a.appendChild(span);
+
+							span = document.createElement('span');
+							span.className = 'author';
+							span.textContent = ' ' + o.author;
+
+							p.appendChild(a);
+							p.appendChild(span);
+							o.message.forEach(function(message) {
+								var _p = document.createElement('p');
+								var match = message.match(/^([a-zA-Z]+-[0-9]+):? (.*)$/);
+								if (match) {
+									var bugid = match[1];
+									var url = BUG_URI.replace(':bug', bugid);
+									a = document.createElement('a');
+									a.href = url;
+									a.target = 'new';
+									a.textContent = bugid;
+									_p.appendChild(a);
+
+									message = ' ' + match[2];
+								}
+								span = document.createElement('span');
+								span.textContent = message;
+								_p.appendChild(span);
+								p.appendChild(_p);
+							});
+							commits.appendChild(p);
+						}
+					});
+
+					commits_div.scrollTop = 0;
+				});
+			}
+
+			/**
+			 * given commits in the format of the smartOS changelog,
+			 * return an object like
+			 * {
+			 *   "repo": [
+			 *     {
+			 *       "author": "Some Name",
+			 *       "hash": "<commit hash>",
+			 *       "date": <Date Object>,
+			 *       "message": [array, of, commit, messages]
+			 *     },
+			 *     ...
+			 *   ]
+			 * }
+			 *
+			 * The `txt` argument is simply the plaintext as found in changelog.txt
+			 */
+			function parse_commits(txt) {
+				var data = {};
+				var current_repo;
+				var current_commit;
+				var lastline;
+				txt.trim().split('\n').forEach(function(line) {
+					// titles have hyphens below them
+					if (line.match(/^------/)) {
+						current_repo = lastline;
+						data[current_repo] = [];
+
+						return;
+					}
+
+					// process commits
+					var match;
+					if (match = line.match(/^commit (.*)$/)) {
+						current_commit = data[current_repo].length;
+						data[current_repo][current_commit] = {
+							hash: match[1],
+							message: []
+						};
+					} else if (match = line.match(/^Author: (.*)$/)) {
+						data[current_repo][current_commit].author = match[1];
+					} else if (match = line.match(/^    (.*)$/)) {
+						data[current_repo][current_commit].message.push(match[1]);
+					}
+
+					lastline = line;
+				});
+
+				return data;
+			}
+
+
+			window.addEventListener('load', init);
+
+			var releases_ul;
+			var commits_div;
+			var about_div;
+			function init() {
+				releases_ul = document.getElementById('releases');
+				commits_div = document.getElementById('commits');
+				about_div = document.getElementById('about');
+				var hash = window.location.hash.substr(1);
+
+				// make all links open in a new window
+				var links = document.getElementsByTagName('a');
+				for (var i = 0; i < links.length; i++)
+					links[i].target = 'new';
+
+				// request all releases
+				request(BASE_URI, function(err, text) {
+					if (err)
+						return alert('failed to find releases: ' + err.message);
+
+					var releases = [];
+					// parse the Manta diectory format of newline separated JSON blobs
+					text.trim().split('\n').forEach(function(line) {
+						var o = JSON.parse(line);
+						if (o.type === 'directory')
+							releases.push(o.name);
+					});
+
+					// sort releases by reverse date (newest first)
+					releases.sort(function(a, b) {
+						return a > b ? -1 : 1;
+					});
+
+					// releases is now a reverse sorted array with the names
+					// of all smartos releases
+					releases.forEach(function(name, i) {
+						var li = document.createElement('li');
+						var a = document.createElement('a');
+						// this URI will fail on older smartos releases that don't have changelogs
+						a.href = BASE_URI + '/' + name + '/changelog.txt';
+						a.textContent = name;
+						a.onclick = function() {
+							window.location.hash = name;
+							return false;
+						};
+						li.appendChild(a);
+						releases_ul.appendChild(li);
+
+						if (!hash && i === 0) {
+							// no hash supplied in the URI, click the first one (newest)
+							a.onclick();
+						} else if (hash && hash == name) {
+							// a hash was supplied and a link matches the given hash, trigger a click basically
+							popstate();
+						}
+					});
+				});
+
+			}
+
+			// handle back button and hashchange
+			window.addEventListener('popstate', popstate);
+			function popstate(event) {
+				var name = window.location.hash.substr(1);
+				var href = BASE_URI + '/' + name + '/changelog.txt';
+				load_changelog(name, href);
+			}
+		</script>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			body {
+				background-color: #497b94;
+				color: #f9f9f9;
+				font-size: 11pt;
+				font-family: monospace;
+			}
+			a {
+				color: white;
+				text-decoration: none;
+			}
+			#top-bar {
+				position: fixed;
+				top: 0;
+				left: 0;
+				right: 0;
+				height: 40px;
+				background-color: #396b84;
+				z-index: 1;
+				font-family: sans-serif;
+				text-align: right;
+				padding: 0 10px;
+			}
+			#top-bar h1 {
+				font-size: 24pt;
+				float: left;
+			}
+			#top-bar a {
+				color: white;
+				text-decoration: none;
+				font-size: 9pt;
+			}
+			#content {
+				margin-top: 40px;
+				position: relative;
+			}
+			#left-side {
+				position: relative;
+				width: 200px;
+				padding: 5px;
+			}
+			#releases {
+
+			}
+			#releases li {
+				margin: 4px;
+				border-radius: 5px;
+			}
+			#releases li a {
+				display: block;
+				text-decoration: none;
+				color: #89abd4;
+				padding: 5px;
+				background-color: #396b84;
+				border-radius: 5px;
+			}
+			#releases li a:hover {
+				background-color: #497b94;
+			}
+			#right-side {
+				position: fixed;
+				right: 0;
+				top: 40px;
+				bottom: 0;
+				left: 200px;
+			}
+			#commits {
+				position: absolute;
+				border-radius: 5px;
+				margin-right: 10px;
+				margin-top: 10px;
+				margin-bottom: 10px;
+				padding: 10px;
+				border: 1px solid #396b84;
+				background-color: #396b84;
+				overflow-x: auto;
+				overflow-y: auto;
+				top: 0;
+				bottom: 0;
+				left: 0;
+				right: 0;
+			}
+			#commits h1 {
+				border-bottom: 2px solid white;
+				margin-bottom: 15px;
+			}
+			#commits h2 {
+				font-weight: normal;
+				border-bottom: 1px dashed white;
+				margin-bottom: 13px;
+			}
+			#commits a {
+				text-decoration: none;
+				color: white;
+			}
+			#commits a:hover {
+				text-decoration: underline;
+			}
+			#commits div.raw-changelog {
+				font-size: 8pt;
+				display: block;
+				margin: 10px;
+			}
+			#commits p.commit {
+				margin-bottom: 12px;
+				color: #bbb;
+				font-size: 9pt;
+			}
+			#commits p p {
+				margin-left: 18px;
+			}
+			#commits p a {
+				font-size: 10pt;
+				color: #a1ccff;
+			}
+			#commits p a:hover {
+				text-decoration: underline;
+			}
+			#commits span.hash {
+			}
+			#commits span.author {
+				color: #fdfdfd;
+			}
+			#about {
+				position: fixed;
+				left: 0;
+				right: 0;
+				top: 0;
+				bottom: 0;
+				padding: 100px;
+				border-radius: 5x;
+				color: #dfdfdf;
+				border: 1px solid #396b84;
+				background-color: #598ba4;
+				font-family: sans-serif;
+				font-size: 10pt;
+			}
+			#about p {
+				margin: 20px 0;
+			}
+			#about a:hover {
+				text-decoration: underline;
+			}
+			.hidden {
+				display: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="top-bar">
+			<h1>SmartOS Changelog</h1>
+			<a href="" onclick="about_div.className = about_div.className ? '' : 'hidden'; return false;">about</a>
+		</div>
+		<div id="content">
+			<div id="left-side">
+				<ul id="releases"></ul>
+			</div>
+			<div id="right-side">
+				<div id="commits"></div>
+			</div>
+		</div>
+		<div id="about" class="hidden">
+			<p>This site provides a dynamically updated Changelog for the <a href="http://smartos.org/">SmartOS Operating System</a>.</p>
+			<p>The page is generated by parsing the list of releases located at <a href="https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/">https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/</a>, and then looking for a <code>changelog.txt</code> file to extract the commit messages from.  Commit hashs are automatically linked to the diffs on GitHub, and bug IDs to their respective page on <a href="http://smartos.org/bugview/">http://smartos.org/bugview/</a>.</p>
+			<p>Also, check out <a href="https://chrome.google.com/webstore/detail/manta-directory-listing/ekhnojbkmjgplcpnecfnlbpldcoddahe">this chrome extension</a> to easily browse directories on Manta.  It makes browsing SmartOS (and other) releases through Manta very easy.</p>
+			<small>Source Code: <a href="https://github.com/bahamas10/smartos-changelog">https://github.com/bahamas10/smartos-changelog</a></small><br />
+			<small>Creator: <a href="https://github.com/bahamas10">Dave Eddy &lt;bahamas10&gt;</a></small><br /><br />
+			<a href="" onclick="about_div.className = 'hidden'; return false;">&larr; back</a>
+		</div>
+	</body>
+</html>
