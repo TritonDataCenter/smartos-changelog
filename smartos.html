@@ -16,8 +16,10 @@ License: MIT
 			// The base repository URL where all repos in the SmartOS Changelogs can be found
 			var BASE_REPO = 'https://github.com/joyent';
 
-			// The URI to use for bug/issue numbers extracted from commit messages
-			var BUG_URI = 'http://smartos.org/bugview/:bug';
+			// The URIs to use for bug/issue numbers extracted from commit messages
+			var SMARTOS_BUG_URI = 'http://smartos.org/bugview/:bug';
+			var ILLUMOS_BUG_URI = 'https://www.illumos.org/issues/:bug';
+
 
 			// A Map of repo names in the Changelog, to the repo name found on GitHub.
 			// At the time of this writing, the repo in the changelog is "illumos", but on
@@ -138,11 +140,14 @@ License: MIT
 							p.appendChild(a);
 							p.appendChild(span);
 							o.message.forEach(function(message) {
-								var _p = document.createElement('p');
-								var match = message.match(/^([a-zA-Z]+-[0-9]+):? (.*)$/);
+								var _p = document.createElement('pre');
+								var match;
+
+								// smartos bug
+								match = message.match(/^([a-zA-Z]+-[0-9]+):? (.*)$/);
 								if (match) {
 									var bugid = match[1];
-									var url = BUG_URI.replace(':bug', bugid);
+									var url = SMARTOS_BUG_URI.replace(':bug', bugid);
 									a = document.createElement('a');
 									a.href = url;
 									a.target = 'new';
@@ -151,6 +156,25 @@ License: MIT
 
 									message = ' ' + match[2];
 								}
+
+								// illumos bug
+								match = message.match(/^( {4})?([0-9]+) (.*)$/);
+								if (repo.match(/^illumos/) && match) {
+									var padding = match[1] || '';
+									var _s = document.createElement('span');
+									_s.textContent = padding;
+									_p.appendChild(_s);
+									var bugid = match[2];
+									var url = ILLUMOS_BUG_URI.replace(':bug', bugid);
+									a = document.createElement('a');
+									a.href = url;
+									a.target = 'new';
+									a.textContent = '#' + bugid;
+									_p.appendChild(a);
+
+									message = ' ' + match[3];
+								}
+
 								span = document.createElement('span');
 								span.textContent = message;
 								_p.appendChild(span);
@@ -398,7 +422,7 @@ License: MIT
 				color: #bbb;
 				font-size: 9pt;
 			}
-			#commits p p {
+			#commits p pre {
 				margin-left: 18px;
 			}
 			#commits p a {
