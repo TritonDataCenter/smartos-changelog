@@ -307,10 +307,11 @@ License: MIT
 
 						if (!hash && i === 0) {
 							// no hash supplied in the URI, click the first one (newest)
-							a.onclick();
+							window.location.replace(window.location + '#' + name);
 						} else if (hash && hash == name) {
-							// a hash was supplied and a link matches the given hash, trigger a click basically
-							popstate();
+							// a hash was supplied and a link matches the given hash, load it
+							var href = BASE_URI + '/' + name + '/changelog.txt';
+							load_changelog(name, href);
 						}
 					});
 				});
@@ -321,6 +322,8 @@ License: MIT
 			window.addEventListener('popstate', popstate);
 			function popstate(event) {
 				var name = window.location.hash.substr(1);
+				if (!name)
+					return;
 				var href = BASE_URI + '/' + name + '/changelog.txt';
 				load_changelog(name, href);
 			}
