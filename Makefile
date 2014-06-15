@@ -5,10 +5,10 @@ BASE_URI = https://us-east.manta.joyent.com/${MANTA_USER}/public
 MANTA_DIR = /${MANTA_USER}/public
 
 publish:
-	mput -f $(LIVE_PAGE) $(MANTA_DIR)/$(LIVE_PAGE)
+	mput -f $(LIVE_PAGE) $(MANTA_DIR)/$(LIVE_PAGE) -H 'Content-Type: text/html; charset=utf-8'
 
 publish/dev:
-	mput -f $(LIVE_PAGE) $(MANTA_DIR)/$(DEV_PAGE)
+	mput -f $(LIVE_PAGE) $(MANTA_DIR)/$(DEV_PAGE) -H 'Content-Type: text/html; charset=utf-8'
 
 open:
 	open $(BASE_URI)/$(LIVE_PAGE)
