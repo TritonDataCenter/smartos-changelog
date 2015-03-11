@@ -6,9 +6,11 @@ MANTA_DIR = /${MANTA_USER}/public
 
 publish:
 	mput -f $(LIVE_PAGE) $(MANTA_DIR)/$(LIVE_PAGE) -H 'Content-Type: text/html; charset=utf-8'
+	@echo $(BASE_URI)/$(LIVE_PAGE)
 
 publish/dev:
 	mput -f $(LIVE_PAGE) $(MANTA_DIR)/$(DEV_PAGE) -H 'Content-Type: text/html; charset=utf-8'
+	@echo $(BASE_URI)/$(DEV_PAGE)
 
 open:
 	open $(BASE_URI)/$(LIVE_PAGE)
