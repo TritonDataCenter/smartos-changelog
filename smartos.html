@@ -139,7 +139,7 @@ License: MIT
 					var h1 = document.createElement('h1');
 					a = document.createElement('a');
 					a.textContent = name;
-					a.target = 'new';
+					a.target = '_blank';
 					a.href = BASE_URI + '/' + name + '/index.html';
 					h1.appendChild(a);
 					commits.appendChild(h1);
@@ -171,7 +171,7 @@ License: MIT
 					// link to the raw changelog
 					a = document.createElement('a');
 					a.href = url;
-					a.target = 'new';
+					a.target = '_blank';
 					a.textContent = '(raw changelog)';
 					div.appendChild(a);
 
@@ -185,7 +185,7 @@ License: MIT
 						// repo title
 						var h2 = document.createElement('h2');
 						a = document.createElement('a');
-						a.target = 'new';
+						a.target = '_blank';
 						a.href = BASE_REPO + '/' + (REPO_MAP[repo] || repo);
 						a.textContent = repo;
 						h2.appendChild(a);
@@ -198,7 +198,7 @@ License: MIT
 							p.className = 'commit';
 							a = document.createElement('a');
 							a.href = BASE_REPO + '/' + (REPO_MAP[repo] || repo) + '/commit/' + o.hash;
-							a.target = 'new';
+							a.target = '_blank';
 							var span;
 							span = document.createElement('span');
 							span.className = 'hash';
@@ -223,7 +223,7 @@ License: MIT
 									var url = SMARTOS_BUG_URI.replace(':bug', bugid);
 									a = document.createElement('a');
 									a.href = url;
-									a.target = 'new';
+									a.target = '_blank';
 									a.textContent = bugid;
 									_p.appendChild(a);
 
@@ -241,7 +241,7 @@ License: MIT
 									var url = ILLUMOS_BUG_URI.replace(':bug', bugid);
 									a = document.createElement('a');
 									a.href = url;
-									a.target = 'new';
+									a.target = '_blank';
 									a.textContent = '#' + bugid;
 									_p.appendChild(a);
 
@@ -327,7 +327,7 @@ License: MIT
 				// make all links open in a new window
 				var links = document.getElementsByTagName('a');
 				for (var i = 0; i < links.length; i++)
-					links[i].target = 'new';
+					links[i].target = links[i].target || '_blank';
 
 				// request all releases
 				request(BASE_URI, 'GET', undefined, MANTA_HEADERS, function(err, text) {
@@ -414,11 +414,13 @@ License: MIT
 				padding: 0 10px;
 			}
 			#top-bar h1 {
-				font-size: 24pt;
 				margin-top: 5px;
 				float: left;
 			}
-			#top-bar a {
+			#top-bar h1 a {
+				font-size: 24pt;
+			}
+			#top-bar > a {
 				color: white;
 				text-decoration: none;
 				font-size: 9pt;
@@ -540,7 +542,7 @@ License: MIT
 	</head>
 	<body>
 		<div id="top-bar">
-			<h1>SmartOS Changelog</h1>
+			<h1><a href="" onclick="location.reload();" target="_self">SmartOS Changelog</a></h1>
 			<a href="" onclick="about_div.className = about_div.className ? '' : 'hidden'; return false;">about</a>
 		</div>
 		<div id="content">
