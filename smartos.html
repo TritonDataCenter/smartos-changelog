@@ -170,12 +170,30 @@ License: MIT
 					// spacer
 					div.appendChild(document.createElement('br'));
 
+					// links
+					var ul = document.createElement('ul');
+					ul.className = 'links';
+					var li;
+
+					// link to download
+					li = document.createElement('li');
+					a = document.createElement('a');
+					a.href = BASE_URI + '/' + name + '/index.html';
+					a.target = '_blank';
+					a.textContent = 'download page';
+					li.appendChild(a);
+					ul.appendChild(li);
+
 					// link to the raw changelog
+					li = document.createElement('li');
 					a = document.createElement('a');
 					a.href = url;
 					a.target = '_blank';
-					a.textContent = '(raw changelog)';
-					div.appendChild(a);
+					a.textContent = 'raw changelog';
+					li.appendChild(a);
+					ul.appendChild(li);
+
+					div.appendChild(ul);
 
 					commits.appendChild(div);
 
@@ -459,6 +477,13 @@ License: MIT
 				top: 40px;
 				bottom: 0;
 				left: 200px;
+			}
+			ul.links {
+				list-style: none;
+			}
+			ul.links li:before {
+				content: "- ";
+				position: relative;
 			}
 			#commits {
 				position: absolute;
