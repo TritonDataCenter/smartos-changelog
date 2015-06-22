@@ -101,7 +101,7 @@ License: MIT
 			*/
 			function human(seconds) {
 				if (seconds instanceof Date)
-					seconds = Math.round((Date.now() - seconds) / 1000);
+					seconds = Math.round((Date.now() - seconds.getTime()) / 1000);
 				var suffix = seconds < 0 ? 'from now' : 'ago';
 				seconds = Math.abs(seconds);
 
@@ -162,8 +162,8 @@ License: MIT
 					// the release date in relative form
 					var p = document.createElement('p');
 					// NOTE: javascript doesn't accept YYYYMMDDTHHMMSSZ time format, so we have to use regex
-					// to break it into something new Date() accepts
-					var date = new Date(name.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1-$2-$3 $4:$5:$6'));
+					// to break it into something `new Date()` accepts
+					var date = new Date(name.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1/$2/$3 $4:$5:$6'));
 					p.textContent = 'released ' + human(date);
 					div.appendChild(p);
 
@@ -410,6 +410,7 @@ License: MIT
 				margin: 0;
 				padding: 0;
 				box-sizing: border-box;
+				-moz-box-sizing: border-box;
 			}
 			body {
 				background-color: #497b94;
@@ -454,7 +455,7 @@ License: MIT
 				padding: 5px;
 			}
 			#releases {
-
+				list-style: none;
 			}
 			#releases li {
 				margin: 4px;
