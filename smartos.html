@@ -193,6 +193,20 @@ License: MIT
 					li.appendChild(a);
 					ul.appendChild(li);
 
+					// single user root password
+					var rootpwli = document.createElement('li');
+					rootpwli.textContent = 'root password "loading..."';
+					ul.appendChild(rootpwli);
+					var u = BASE_URI + '/' + name + '/SINGLE_USER_ROOT_PASSWORD.txt';
+					request(u, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
+						var msg = 'root password';
+						if (err)
+							msg = '[error] ' + msg + ': ' + err.message;
+						else
+							msg += ' "' + txt.trim() + '"';
+						rootpwli.textContent = msg;
+					});
+
 					div.appendChild(ul);
 
 					commits.appendChild(div);
