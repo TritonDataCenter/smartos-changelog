@@ -5,10 +5,6 @@ JavaScript/HTML Page for generating a pretty [SmartOS](http://smartos.org) Chang
 
 https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/smartos.html
 
-You can view the bleeding edge dev version here
-
-https://us-east.manta.joyent.com/bahamas10/public/smartos.html
-
 Usage
 -----
 
