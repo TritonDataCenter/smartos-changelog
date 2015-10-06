@@ -36,6 +36,11 @@ License: MIT
 				'kvm-cmd': 'illumos-kvm-cmd',
 			};
 
+			// Directories to skip when pulling releases
+			var BLACKLIST_DIRS = [
+				'hotpatches'
+			];
+
 			/**
 			 * simple function to make a request and get the text back
 			 *
@@ -372,7 +377,7 @@ License: MIT
 					// parse the Manta diectory format of newline separated JSON blobs
 					text.trim().split('\n').forEach(function(line) {
 						var o = JSON.parse(line);
-						if (o.type === 'directory')
+						if (o.type === 'directory' && BLACKLIST_DIRS.indexOf(o.name) < 0)
 							releases.push(o.name);
 					});
 
