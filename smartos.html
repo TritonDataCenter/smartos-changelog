@@ -27,6 +27,9 @@ License: MIT
 				'Pragma': 'no-cache'
 			};
 
+			// Number of releases to show on the left side by default
+			var MAX_RELEASES = 50;
+
 			// A Map of repo names in the Changelog, to the repo name found on GitHub.
 			// At the time of this writing, the repo in the changelog is "illumos", but on
 			// GitHub it is called "illumos-joyent"
@@ -168,7 +171,7 @@ License: MIT
 					var p = document.createElement('p');
 					// NOTE: javascript doesn't accept YYYYMMDDTHHMMSSZ time format, so we have to use regex
 					// to break it into something `new Date()` accepts
-					var date = new Date(name.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1/$2/$3 $4:$5:$6'));
+					var date = new Date(name.split('-')[0].replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1/$2/$3 $4:$5:$6'));
 					p.textContent = 'released ' + human(date);
 					div.appendChild(p);
 
@@ -370,8 +373,10 @@ License: MIT
 
 				// request all releases
 				request(BASE_URI, 'GET', undefined, MANTA_HEADERS, function(err, text) {
-					if (err)
-						return alert('failed to find releases: ' + err.message);
+					if (err) {
+						alert('failed to find releases: ' + err.message);
+						return;
+					}
 
 					var releases = [];
 					// parse the Manta diectory format of newline separated JSON blobs
@@ -382,12 +387,13 @@ License: MIT
 					});
 
 					// sort releases by reverse date (newest first)
-					releases.sort(function(a, b) {
+					releases = releases.sort(function(a, b) {
 						return a > b ? -1 : 1;
 					});
 
 					// releases is now a reverse sorted array with the names
 					// of all smartos releases
+					var hidden = [];
 					releases.forEach(function(name, i) {
 						var li = document.createElement('li');
 						var a = document.createElement('a');
@@ -399,6 +405,10 @@ License: MIT
 							return false;
 						};
 						li.appendChild(a);
+						if (i >= MAX_RELEASES) {
+							li.style.display = 'none';
+							hidden.push(li);
+						}
 						releases_ul.appendChild(li);
 
 						if (!hash && i === 0) {
@@ -410,6 +420,23 @@ License: MIT
 							load_changelog(name, href);
 						}
 					});
+
+					// add load more if > MAX_RELEASES releases seen
+					if (hidden.length > 0) {
+						var li = document.createElement('li');
+						var a = document.createElement('a');
+						a.href = '#';
+						a.textContent = hidden.length + ' more...';
+						a.onclick = function() {
+							li.style.display = 'none';
+							hidden.forEach(function (h) {
+								h.style.display = 'block';
+							});
+							return false;
+						};
+						li.appendChild(a);
+						releases_ul.appendChild(li);
+					}
 				});
 
 			}
