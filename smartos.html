@@ -141,6 +141,10 @@ License: MIT
 			 * of the HTML site seen
 			 */
 			function load_changelog(name, url) {
+				// strip off any "-toxic" or release suffix
+				var name_date = name.split('-')[0];
+
+				// grab the changelog text
 				request(url, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
 					var a;
 
@@ -171,7 +175,7 @@ License: MIT
 					var p = document.createElement('p');
 					// NOTE: javascript doesn't accept YYYYMMDDTHHMMSSZ time format, so we have to use regex
 					// to break it into something `new Date()` accepts
-					var date = new Date(name.split('-')[0].replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1/$2/$3 $4:$5:$6'));
+					var date = new Date(name_date.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1/$2/$3 $4:$5:$6'));
 					p.textContent = 'released ' + human(date);
 					div.appendChild(p);
 
@@ -181,25 +185,49 @@ License: MIT
 					// links
 					var ul = document.createElement('ul');
 					ul.className = 'links';
-					var li;
 
-					// link to download
-					li = document.createElement('li');
-					a = document.createElement('a');
-					a.href = BASE_URI + '/' + name + '/index.html';
-					a.target = '_blank';
-					a.textContent = 'download page';
-					li.appendChild(a);
-					ul.appendChild(li);
-
-					// link to the raw changelog
-					li = document.createElement('li');
-					a = document.createElement('a');
-					a.href = url;
-					a.target = '_blank';
-					a.textContent = 'raw changelog';
-					li.appendChild(a);
-					ul.appendChild(li);
+					[
+						{
+							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.iso',
+							name: 'download ISO       smartos-' + name_date + '.iso'
+						},
+						{
+							href: BASE_URI + '/' + name + '/smartos-' + name_date + '-USB.img.bz2',
+							name: 'download USB       smartos-' + name_date + '-USB.img.bz2'
+						},
+						{
+							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.vmwarevm.tar.bz2',
+							name: 'download VMware    smartos-' + name_date + '.vmwarevm.tar.bz2'
+						},
+						{
+							href: BASE_URI + '/' + name + '/platform-' + name_date + '.tgz',
+							name: 'download Tarball   platform-' + name_date + '.tgz'
+						},
+						null, // spacer
+						{
+							href: BASE_URI + '/' + name + '/index.html',
+							name: 'download page'
+						},
+						{
+							href: BASE_URI + '/' + name + '/changelog.txt',
+							name: 'raw changelog'
+						}
+					].forEach(function (o) {
+						if (o === null) {
+							ul.appendChild(document.createElement('br'));
+							return;
+						}
+						var li = document.createElement('li');
+						var a = document.createElement('a');
+						var pre = document.createElement('pre');
+						pre.style.display = 'inline';
+						a.href = o.href;
+						a.target = '_blank';
+						pre.textContent = o.name;
+						a.appendChild(pre);
+						li.appendChild(a);
+						ul.appendChild(li);
+					});
 
 					// single user root password
 					var rootpwli = document.createElement('li');
