@@ -1,8 +1,8 @@
 LIVE_PAGE = smartos.html
 DEV_PAGE = smartos-dev.html
 
-BASE_URI = https://us-east.manta.joyent.com/${MANTA_USER}/public
-MANTA_DIR = /${MANTA_USER}/public
+BASE_URI ?= https://us-east.manta.joyent.com/${MANTA_USER}/public
+MANTA_DIR ?= /${MANTA_USER}/public
 
 push: publish
 publish:
