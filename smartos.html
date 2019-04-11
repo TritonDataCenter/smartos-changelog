@@ -172,11 +172,19 @@ License: MIT
 					var div = document.createElement('div');
 					div.className = 'raw-changelog';
 
+					var newboot_date = new Date('2019-04-10');
+
 					// the release date in relative form
 					var p = document.createElement('p');
 					// NOTE: javascript doesn't accept YYYYMMDDTHHMMSSZ time format, so we have to use regex
 					// to break it into something `new Date()` accepts
 					var date = new Date(name_date.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1-$2-$3T$4:$5:$6.000Z'));
+
+					var compressed_suffix = 'bz2';
+
+					if (date > newboot_date)
+						compressed_suffix = 'gz';
+
 					p.textContent = 'released ' + human(date);
 					div.appendChild(p);
 
@@ -193,12 +201,12 @@ License: MIT
 							name: 'download ISO       smartos-' + name_date + '.iso'
 						},
 						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '-USB.img.bz2',
-							name: 'download USB       smartos-' + name_date + '-USB.img.bz2'
+							href: BASE_URI + '/' + name + '/smartos-' + name_date + '-USB.img.' + compressed_suffix,
+							name: 'download USB       smartos-' + name_date + '-USB.img.' + compressed_suffix
 						},
 						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.vmwarevm.tar.bz2',
-							name: 'download VMware    smartos-' + name_date + '.vmwarevm.tar.bz2'
+							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix,
+							name: 'download VMware    smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix
 						},
 						{
 							href: BASE_URI + '/' + name + '/platform-' + name_date + '.tgz',
