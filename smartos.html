@@ -135,6 +135,88 @@ License: MIT
 			}
 
 			/**
+			* Append content to the given <ul> object by parsing the md5sums.txt
+			* file from the given url. At the moment, we only need this to
+			* determine the name of the platform tarball, which differs across
+			* releases.
+			* We pass in name_date and compressed_suffix which are also needed
+			* for the correct link creation.
+			*/
+			function generate_file_links(md5_url, name, name_date, compressed_suffix, ul) {
+				request(md5_url, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
+					var md5_lines = txt.split('\n');
+					var platform_tgz_name = null;
+					for (var i = 0; i < md5_lines.length; i++) {
+						var md5_entry = md5_lines[i].split(' ');
+						if (md5_entry.length === 2 &&
+							md5_entry[1].startsWith('platform') &&
+							md5_entry[1].endsWith('.tgz')) {
+								platform_tgz_name = md5_entry[1];
+							}
+					}
+					// Since we're parsing the md5sums.txt, we could replace
+					// this effectively static array with something more
+					// bullet-proof, but that might be at the expense of
+					// a prettier download page.
+					[
+						{
+							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.iso',
+							name: 'download ISO       smartos-' + name_date + '.iso'
+						},
+						{
+							href: BASE_URI + '/' + name + '/smartos-' + name_date + '-USB.img.' + compressed_suffix,
+							name: 'download USB       smartos-' + name_date + '-USB.img.' + compressed_suffix
+						},
+						{
+							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix,
+							name: 'download VMware    smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix
+						},
+						{
+							href: BASE_URI + '/' + name + '/' + platform_tgz_name,
+							name: 'download Tarball   ' + platform_tgz_name
+						},
+						null, // spacer
+						{
+							href: BASE_URI + '/' + name + '/index.html',
+							name: 'download page'
+						},
+						{
+							href: BASE_URI + '/' + name + '/changelog.txt',
+							name: 'raw changelog'
+						}
+					].forEach(function (o) {
+						if (o === null) {
+							ul.appendChild(document.createElement('br'));
+							return;
+						}
+						var li = document.createElement('li');
+						var a = document.createElement('a');
+						var pre = document.createElement('pre');
+						pre.style.display = 'inline';
+						a.href = o.href;
+						a.target = '_blank';
+						pre.textContent = o.name;
+						a.appendChild(pre);
+						li.appendChild(a);
+						ul.appendChild(li);
+					});
+					// single user root password
+					var rootpwli = document.createElement('li');
+					rootpwli.textContent = 'root password "loading..."';
+					ul.appendChild(rootpwli);
+					var u = BASE_URI + '/' + name + '/SINGLE_USER_ROOT_PASSWORD.txt';
+					request(u, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
+						var msg = 'root password';
+						if (err)
+							msg = '[error] ' + msg + ': ' + err.message;
+						else
+							msg += ' "' + txt.trim() + '"';
+						rootpwli.textContent = msg;
+					});
+				});
+			}
+
+			/**
 			 * Load a SmartOS Changelog given both the name of the release, and
 			 * the URL to the changelog.txt file
 			 *
@@ -195,62 +277,10 @@ License: MIT
 					var ul = document.createElement('ul');
 					ul.className = 'links';
 
-					[
-						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.iso',
-							name: 'download ISO       smartos-' + name_date + '.iso'
-						},
-						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '-USB.img.' + compressed_suffix,
-							name: 'download USB       smartos-' + name_date + '-USB.img.' + compressed_suffix
-						},
-						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix,
-							name: 'download VMware    smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix
-						},
-						{
-							href: BASE_URI + '/' + name + '/platform-' + name_date + '.tgz',
-							name: 'download Tarball   platform-' + name_date + '.tgz'
-						},
-						null, // spacer
-						{
-							href: BASE_URI + '/' + name + '/index.html',
-							name: 'download page'
-						},
-						{
-							href: BASE_URI + '/' + name + '/changelog.txt',
-							name: 'raw changelog'
-						}
-					].forEach(function (o) {
-						if (o === null) {
-							ul.appendChild(document.createElement('br'));
-							return;
-						}
-						var li = document.createElement('li');
-						var a = document.createElement('a');
-						var pre = document.createElement('pre');
-						pre.style.display = 'inline';
-						a.href = o.href;
-						a.target = '_blank';
-						pre.textContent = o.name;
-						a.appendChild(pre);
-						li.appendChild(a);
-						ul.appendChild(li);
-					});
-
-					// single user root password
-					var rootpwli = document.createElement('li');
-					rootpwli.textContent = 'root password "loading..."';
-					ul.appendChild(rootpwli);
-					var u = BASE_URI + '/' + name + '/SINGLE_USER_ROOT_PASSWORD.txt';
-					request(u, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
-						var msg = 'root password';
-						if (err)
-							msg = '[error] ' + msg + ': ' + err.message;
-						else
-							msg += ' "' + txt.trim() + '"';
-						rootpwli.textContent = msg;
-					});
+					// We determine the platform name by parsing the md5sums
+					// file since these vary by release.
+					var md5_url = BASE_URI + '/' + name + '/md5sums.txt';
+					generate_file_links(md5_url, name, name_date, compressed_suffix, ul);
 
 					div.appendChild(ul);
 
@@ -416,7 +446,7 @@ License: MIT
 					}
 
 					var releases = [];
-					// parse the Manta diectory format of newline separated JSON blobs
+					// parse the Manta directory format of newline separated JSON blobs
 					text.trim().split('\n').forEach(function(line) {
 						var o = JSON.parse(line);
 						if (o.type === 'directory' && BLACKLIST_DIRS.indexOf(o.name) < 0)
