@@ -143,7 +143,7 @@ License: MIT
 			* We pass in name_date and compressed_suffix which are also needed
 			* for the correct link creation.
 			*/
-			function generate_file_links(md5_url, name, name_date, compressed_suffix, ul) {
+			function generate_file_links(md5_url, base_uri, name_date, compressed_suffix, ul) {
 				request(md5_url, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
 					var md5_lines = txt.split('\n');
 					var platform_tgz_name = null;
@@ -161,28 +161,28 @@ License: MIT
 					// a prettier download page.
 					[
 						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.iso',
+							href: base_uri + '/smartos-' + name_date + '.iso',
 							name: 'download ISO       smartos-' + name_date + '.iso'
 						},
 						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '-USB.img.' + compressed_suffix,
+							href: base_uri + '/smartos-' + name_date + '-USB.img.' + compressed_suffix,
 							name: 'download USB       smartos-' + name_date + '-USB.img.' + compressed_suffix
 						},
 						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix,
+							href: base_uri + '/smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix,
 							name: 'download VMware    smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix
 						},
 						{
-							href: BASE_URI + '/' + name + '/' + platform_tgz_name,
+							href: base_uri + '/' + platform_tgz_name,
 							name: 'download Tarball   ' + platform_tgz_name
 						},
 						null, // spacer
 						{
-							href: BASE_URI + '/' + name + '/index.html',
+							href: base_uri + '/index.html',
 							name: 'download page'
 						},
 						{
-							href: BASE_URI + '/' + name + '/changelog.txt',
+							href: base_uri + '/changelog.txt',
 							name: 'raw changelog'
 						}
 					].forEach(function (o) {
@@ -205,7 +205,7 @@ License: MIT
 					var rootpwli = document.createElement('li');
 					rootpwli.textContent = 'root password "loading..."';
 					ul.appendChild(rootpwli);
-					var u = BASE_URI + '/' + name + '/SINGLE_USER_ROOT_PASSWORD.txt';
+					var u = base_uri + '/SINGLE_USER_ROOT_PASSWORD.txt';
 					request(u, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
 						var msg = 'root password';
 						if (err)
@@ -219,155 +219,175 @@ License: MIT
 
 			/**
 			 * Load a SmartOS Changelog given both the name of the release, and
-			 * the URL to the changelog.txt file
+			 * the URL to the changelog.txt file.
+			 *
+			 * The SmartOS release process previously used Manta snaplinks
+			 * in /Joyent_Dev/public/SmartOS/<timestamp>/ pointing to the
+			 * corresponding objects in
+			 * /Joyent_Dev/public/builds/platform/release-<stamp>-<timestamp>/platform/
+			 *
+			 * Rather than relying on snaplinks always being around, we also
+			 * attempt to read the single 'platform-link' object which contains
+			 * the original /Joyent_Dev/public/builds/platform/... path, and
+			 * use that as the base uri if it exists.
 			 *
 			 * This function returns nothing, and creates, basically, the majority
 			 * of the HTML site seen
 			 */
-			function load_changelog(name, url) {
+			function load_changelog(name, base_uri) {
 				// strip off any "-toxic" or release suffix
 				var name_date = name.split('-')[0];
-
-				// grab the changelog text
-				request(url, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
-					var a;
-
-					commits.innerHTML = '';
-					// the main title, the name of the smartos release
-					var h1 = document.createElement('h1');
-					a = document.createElement('a');
-					a.textContent = name;
-					a.target = '_blank';
-					a.href = BASE_URI + '/' + name + '/index.html';
-					h1.appendChild(a);
-					commits.appendChild(h1);
-
-					if (err) {
-						var p = document.createElement('p');
-						p.textContent = 'failed to load ' + url + ': ' + err.message;
-						commits.appendChild(p);
-						return;
+				var platform_link = base_uri + '/platform-link';
+				// magic here to get the platform release and compute the correct
+				// new base_uri
+				request(platform_link, 'GET', undefined, MANTA_HEADERS, function(err, link) {
+					var computed_base_uri = base_uri;
+					if (!err) {
+						computed_base_uri = link;
 					}
 
-					var d = parse_commits(txt);
+					var url = computed_base_uri + '/changelog.txt';
+					// grab the changelog text
+					request(url, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
+						var a;
 
-					// the raw-changelog link and the time of the release
-					var div = document.createElement('div');
-					div.className = 'raw-changelog';
-
-					var newboot_date = new Date('2019-04-10');
-
-					// the release date in relative form
-					var p = document.createElement('p');
-					// NOTE: javascript doesn't accept YYYYMMDDTHHMMSSZ time format, so we have to use regex
-					// to break it into something `new Date()` accepts
-					var date = new Date(name_date.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1-$2-$3T$4:$5:$6.000Z'));
-
-					var compressed_suffix = 'bz2';
-
-					if (date > newboot_date)
-						compressed_suffix = 'gz';
-
-					p.textContent = 'released ' + human(date);
-					div.appendChild(p);
-
-					// spacer
-					div.appendChild(document.createElement('br'));
-
-					// links
-					var ul = document.createElement('ul');
-					ul.className = 'links';
-
-					// We determine the platform name by parsing the md5sums
-					// file since these vary by release.
-					var md5_url = BASE_URI + '/' + name + '/md5sums.txt';
-					generate_file_links(md5_url, name, name_date, compressed_suffix, ul);
-
-					div.appendChild(ul);
-
-					commits.appendChild(div);
-
-					// loop each repo
-					Object.keys(d).forEach(function(repo) {
-						if (!d[repo].length)
-							return;
-
-						// repo title
-						var h2 = document.createElement('h2');
+						commits.innerHTML = '';
+						// the main title, the name of the smartos release
+						var h1 = document.createElement('h1');
 						a = document.createElement('a');
+						a.textContent = name;
 						a.target = '_blank';
-						a.href = BASE_REPO + '/' + (REPO_MAP[repo] || repo);
-						a.textContent = repo;
-						h2.appendChild(a);
-						commits.appendChild(h2);
+						a.href = base_uri + '/index.html';
+						h1.appendChild(a);
+						commits.appendChild(h1);
 
-						// loop each commit
-						for (var i = 0; i < d[repo].length; i++) {
-							var o = d[repo][i];
+						if (err) {
 							var p = document.createElement('p');
-							p.className = 'commit';
+							p.textContent = 'failed to load ' + url + ': ' + err.message;
+							commits.appendChild(p);
+							return;
+						}
+
+						var d = parse_commits(txt);
+
+						// the raw-changelog link and the time of the release
+						var div = document.createElement('div');
+						div.className = 'raw-changelog';
+
+						var newboot_date = new Date('2019-04-10');
+
+						// the release date in relative form
+						var p = document.createElement('p');
+						// NOTE: javascript doesn't accept YYYYMMDDTHHMMSSZ time format, so we have to use regex
+						// to break it into something `new Date()` accepts
+						var date = new Date(name_date.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1-$2-$3T$4:$5:$6.000Z'));
+
+						var compressed_suffix = 'bz2';
+
+						if (date > newboot_date)
+							compressed_suffix = 'gz';
+
+						p.textContent = 'released ' + human(date);
+						div.appendChild(p);
+
+						// spacer
+						div.appendChild(document.createElement('br'));
+
+						// links
+						var ul = document.createElement('ul');
+						ul.className = 'links';
+
+						// We determine the platform name by parsing the md5sums
+						// file since these vary by release.
+						var md5_url = base_uri + '/md5sums.txt';
+						generate_file_links(md5_url, computed_base_uri, name_date, compressed_suffix, ul);
+
+						div.appendChild(ul);
+
+						commits.appendChild(div);
+
+						// loop each repo
+						Object.keys(d).forEach(function(repo) {
+							if (!d[repo].length)
+								return;
+
+							// repo title
+							var h2 = document.createElement('h2');
 							a = document.createElement('a');
-							a.href = BASE_REPO + '/' + (REPO_MAP[repo] || repo) + '/commit/' + o.hash;
 							a.target = '_blank';
-							var span;
-							span = document.createElement('span');
-							span.className = 'hash';
-							span.textContent = o.hash.substr(0, 8);
-							a.appendChild(span);
+							a.href = BASE_REPO + '/' + (REPO_MAP[repo] || repo);
+							a.textContent = repo;
+							h2.appendChild(a);
+							commits.appendChild(h2);
 
-							span = document.createElement('span');
-							span.className = 'author';
-							span.textContent = ' ' + o.author;
-
-							p.appendChild(a);
-							p.appendChild(span);
-							// loop each line of the commit message
-							o.message.forEach(function(message) {
-								var _p = document.createElement('pre');
-								var match;
-
-								// smartos bug
-								match = message.match(/^([a-zA-Z]+-[0-9]+):? (.*)$/);
-								if (match) {
-									var bugid = match[1];
-									var url = SMARTOS_BUG_URI.replace(':bug', bugid);
-									a = document.createElement('a');
-									a.href = url;
-									a.target = '_blank';
-									a.textContent = bugid;
-									_p.appendChild(a);
-
-									message = ' ' + match[2];
-								}
-
-								// illumos bug
-								match = message.match(/^( {4})?([0-9]+) (.*)$/);
-								if (repo.match(/^illumos/) && match) {
-									var padding = match[1] || '';
-									var _s = document.createElement('span');
-									_s.textContent = padding;
-									_p.appendChild(_s);
-									var bugid = match[2];
-									var url = ILLUMOS_BUG_URI.replace(':bug', bugid);
-									a = document.createElement('a');
-									a.href = url;
-									a.target = '_blank';
-									a.textContent = '#' + bugid;
-									_p.appendChild(a);
-
-									message = ' ' + match[3];
-								}
+							// loop each commit
+							for (var i = 0; i < d[repo].length; i++) {
+								var o = d[repo][i];
+								var p = document.createElement('p');
+								p.className = 'commit';
+								a = document.createElement('a');
+								a.href = BASE_REPO + '/' + (REPO_MAP[repo] || repo) + '/commit/' + o.hash;
+								a.target = '_blank';
+								var span;
+								span = document.createElement('span');
+								span.className = 'hash';
+								span.textContent = o.hash.substr(0, 8);
+								a.appendChild(span);
 
 								span = document.createElement('span');
-								span.textContent = message;
-								_p.appendChild(span);
-								p.appendChild(_p);
-							});
-							commits.appendChild(p);
-						}
-					});
+								span.className = 'author';
+								span.textContent = ' ' + o.author;
 
-					commits_div.scrollTop = 0;
+								p.appendChild(a);
+								p.appendChild(span);
+								// loop each line of the commit message
+								o.message.forEach(function(message) {
+									var _p = document.createElement('pre');
+									var match;
+
+									// smartos bug
+									match = message.match(/^([a-zA-Z]+-[0-9]+):? (.*)$/);
+									if (match) {
+										var bugid = match[1];
+										var url = SMARTOS_BUG_URI.replace(':bug', bugid);
+										a = document.createElement('a');
+										a.href = url;
+										a.target = '_blank';
+										a.textContent = bugid;
+										_p.appendChild(a);
+
+										message = ' ' + match[2];
+									}
+
+									// illumos bug
+									match = message.match(/^( {4})?([0-9]+) (.*)$/);
+									if (repo.match(/^illumos/) && match) {
+										var padding = match[1] || '';
+										var _s = document.createElement('span');
+										_s.textContent = padding;
+										_p.appendChild(_s);
+										var bugid = match[2];
+										var url = ILLUMOS_BUG_URI.replace(':bug', bugid);
+										a = document.createElement('a');
+										a.href = url;
+										a.target = '_blank';
+										a.textContent = '#' + bugid;
+										_p.appendChild(a);
+
+										message = ' ' + match[3];
+									}
+
+									span = document.createElement('span');
+									span.textContent = message;
+									_p.appendChild(span);
+									p.appendChild(_p);
+								});
+								commits.appendChild(p);
+							}
+						});
+
+						commits_div.scrollTop = 0;
+					});
 				});
 			}
 
@@ -466,7 +486,7 @@ License: MIT
 						var li = document.createElement('li');
 						var a = document.createElement('a');
 						// this URI will fail on older smartos releases that don't have changelogs
-						a.href = BASE_URI + '/' + name + '/changelog.txt';
+						a.href = name + '/changelog.txt';
 						a.textContent = name;
 						a.onclick = function() {
 							window.location.hash = name;
@@ -484,8 +504,7 @@ License: MIT
 							window.location.replace(window.location + '#' + name);
 						} else if (hash && hash == name) {
 							// a hash was supplied and a link matches the given hash, load it
-							var href = BASE_URI + '/' + name + '/changelog.txt';
-							load_changelog(name, href);
+							load_changelog(name, BASE_URI + '/' + name);
 						}
 					});
 
@@ -515,8 +534,7 @@ License: MIT
 				var name = window.location.hash.substr(1);
 				if (!name)
 					return;
-				var href = BASE_URI + '/' + name + '/changelog.txt';
-				load_changelog(name, href);
+				load_changelog(name, BASE_URI + '/' + name);
 			}
 		</script>
 		<style>
@@ -696,9 +714,9 @@ License: MIT
 		</div>
 		<div id="about" class="hidden">
 			<p>This site provides a dynamically updated Changelog for the <a href="http://smartos.org/">SmartOS Operating System</a>.</p>
-			<p>The page is generated by parsing the list of releases located at <a href="https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/">https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/</a>, and then looking for a <code>changelog.txt</code> file to extract the commit messages from.  Commit hashs are automatically linked to the diffs on GitHub, and bug IDs to their respective page on <a href="http://smartos.org/bugview/">http://smartos.org/bugview/</a>.</p>
+			<p>The page is generated by parsing the list of releases located at <a href="https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/">https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/</a>, and then looking for an indirect <code>platform-link</code> file pointing to a Manta directory containing a <code>changelog.txt</code> file or a <code>changelog.txt</code> file to extract the commit messages from.  Commit hashs are automatically linked to the diffs on GitHub, and bug IDs to their respective page on <a href="http://smartos.org/bugview/">http://smartos.org/bugview/</a>.</p>
 			<p>Also, check out <a href="https://chrome.google.com/webstore/detail/manta-directory-listing/ekhnojbkmjgplcpnecfnlbpldcoddahe">this chrome extension</a> to easily browse directories on Manta.  It makes browsing SmartOS (and other) releases through Manta very easy.</p>
-			<small>Source Code: <a href="https://github.com/bahamas10/smartos-changelog">https://github.com/bahamas10/smartos-changelog</a></small><br />
+			<small>Source Code: <a href="https://github.com/bahamas10/smartos-changelog">https://github.com/joyent/smartos-changelog</a></small><br />
 			<small>Creator: <a href="https://github.com/bahamas10">Dave Eddy &lt;bahamas10&gt;</a></small><br /><br />
 			<a href="" onclick="about_div.className = 'hidden'; return false;">&larr; back</a>
 		</div>
