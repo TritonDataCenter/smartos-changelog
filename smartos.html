@@ -299,7 +299,7 @@ License: MIT
 
 						// We determine the platform name by parsing the md5sums
 						// file since these vary by release.
-						var md5_url = base_uri + '/md5sums.txt';
+						var md5_url = computed_base_uri + '/md5sums.txt';
 						generate_file_links(md5_url, computed_base_uri, name_date, compressed_suffix, ul);
 
 						div.appendChild(ul);
