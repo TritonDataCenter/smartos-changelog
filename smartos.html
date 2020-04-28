@@ -439,8 +439,11 @@ License: MIT
 				for (var i = 0; i < links.length; i++)
 					links[i].target = links[i].target || '_blank';
 
-				// request all releases
-				request(BASE_URI, 'GET', undefined, MANTA_HEADERS, function(err, text) {
+				// Request all releases, including a 'limit' query parameter.
+				// (otherwise we would default to 256 releases) Note that this
+				// is separate to MAX_RELEASES, which only defines the visible
+				// number of releases.
+				request(BASE_URI + '?limit=1024', 'GET', undefined, MANTA_HEADERS, function(err, text) {
 					if (err) {
 						alert('failed to find releases: ' + err.message);
 						return;
