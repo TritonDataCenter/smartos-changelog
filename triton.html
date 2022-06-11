@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-SmartOS Changelog made pretty
+Triton Changelog made pretty
 
 Author: Dave Eddy <dave@daveeddy.com>
 License: MIT
@@ -8,13 +8,13 @@ License: MIT
 <html lang="en">
 	<head>
 		<meta charset="UTF-8">
-		<title>SmartOS Changelog</title>
+		<title>Triton Changelog</title>
 		<script>
 			// URI (in the case, relative to our domain) where SmartOS releases
 			// are stored in Manta
-			var BASE_URI = '/Joyent_Dev/public/SmartOS';
+			var BASE_URI = '/Joyent_Dev/public/SmartDataCenter';
 
-			// The base repository URL where all repos in the SmartOS Changelogs can be found
+			// The base repository URL where all repos in the Triton Changelogs can be found
 			var BASE_REPO = 'https://github.com/TritonDataCenter';
 
 			// The URIs to use for bug/issue numbers extracted from commit messages
@@ -161,26 +161,26 @@ License: MIT
 					// a prettier download page.
 					[
 						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.iso',
-							name: 'download ISO       smartos-' + name_date + '.iso'
+							href: BASE_URI + '/' + name + '/headnode/usb-' + name_date + '.t' + compressed_suffix,
+							name: 'download USB       usb-' + name_date + '.t' + compressed_suffix
 						},
 						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '-USB.img.' + compressed_suffix,
-							name: 'download USB       smartos-' + name_date + '-USB.img.' + compressed_suffix
+							href: BASE_URI + '/' + name + '/headnode/coal-' + name_date + '-8gb.t' + compressed_suffix,
+							name: 'download VMware    coal-' + name_date + '-8gb.t' + compressed_suffix
 						},
 						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix,
-							name: 'download VMware    smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix
+							href: BASE_URI + '/' + name + '/headnode/iso-' + name_date + '.iso',
+							name: 'download ISO       iso-' + name_date + '.iso'
 						},
 						{
-							href: BASE_URI + '/' + name + '/' + platform_tgz_name,
-							name: 'download Tarball   ' + platform_tgz_name
+							href: BASE_URI + '/' + name + '/headnode/ipxe-' + name_date + '.t' + compressed_suffix,
+							name: 'download IPXE      ipxe-' + name_date + '.t' + compressed_suffix
 						},
 						null, // spacer
-						{
-							href: BASE_URI + '/' + name + '/index.html',
-							name: 'download page'
-						},
+						// {
+						// 	href: BASE_URI + '/' + name + '/index.html',
+						// 	name: 'download page'
+						// },
 						{
 							href: BASE_URI + '/' + name + '/changelog.txt',
 							name: 'raw changelog'
@@ -203,6 +203,7 @@ License: MIT
 					});
 					// single user root password
 					var rootpwli = document.createElement('li');
+					/*
 					rootpwli.textContent = 'root password "loading..."';
 					ul.appendChild(rootpwli);
 					var u = BASE_URI + '/' + name + '/SINGLE_USER_ROOT_PASSWORD.txt';
@@ -214,11 +215,12 @@ License: MIT
 							msg += ' "' + txt.trim() + '"';
 						rootpwli.textContent = msg;
 					});
+					*/
 				});
 			}
 
 			/**
-			 * Load a SmartOS Changelog given both the name of the release, and
+			 * Load a Triton Changelog given both the name of the release, and
 			 * the URL to the changelog.txt file
 			 *
 			 * This function returns nothing, and creates, basically, the majority
@@ -226,7 +228,13 @@ License: MIT
 			 */
 			function load_changelog(name, url) {
 				// strip off any "-toxic" or release suffix
-				var name_date = name.split('-')[0];
+				var branch_stub, branch_date, name_date, hash;
+				var name_a = name.split('-');
+				var branch = name_a[0] + '-' + name_a[1];
+				var stamp = name_a[2];
+				var hash = name_a[3];
+
+				var name_date = [ branch, stamp, hash ].join('-');
 
 				// grab the changelog text
 				request(url, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
@@ -261,7 +269,8 @@ License: MIT
 					var p = document.createElement('p');
 					// NOTE: javascript doesn't accept YYYYMMDDTHHMMSSZ time format, so we have to use regex
 					// to break it into something `new Date()` accepts
-					var date = new Date(name_date.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1-$2-$3T$4:$5:$6.000Z'));
+					var stamp = name_date.split('-')[2];
+					var date = new Date(stamp.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1-$2-$3T$4:$5:$6.000Z'));
 
 					var compressed_suffix = 'bz2';
 
@@ -372,7 +381,7 @@ License: MIT
 			}
 
 			/**
-			 * given commits in the format of the smartOS changelog,
+			 * given commits in the format of the Triton Changelog,
 			 * return an object like
 			 * {
 			 *   "repo": [
@@ -687,7 +696,7 @@ License: MIT
 	</head>
 	<body>
 		<div id="top-bar">
-			<h1><a href="" onclick="location.reload();" target="_self">SmartOS Changelog</a></h1>
+			<h1><a href="" onclick="location.reload();" target="_self">Triton Changelog</a></h1>
 			<a href="" onclick="about_div.className = about_div.className ? '' : 'hidden'; return false;">about</a>
 		</div>
 		<div id="content">
