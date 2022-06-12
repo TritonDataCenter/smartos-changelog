@@ -177,6 +177,8 @@ License: MIT
 							name: 'download IPXE      ipxe-' + name_date + '.t' + compressed_suffix
 						},
 						null, // spacer
+						// Triton currently doesn't have a download page.
+						// Should we add one?
 						// {
 						// 	href: BASE_URI + '/' + name + '/index.html',
 						// 	name: 'download page'
@@ -201,21 +203,6 @@ License: MIT
 						li.appendChild(a);
 						ul.appendChild(li);
 					});
-					// single user root password
-					var rootpwli = document.createElement('li');
-					/*
-					rootpwli.textContent = 'root password "loading..."';
-					ul.appendChild(rootpwli);
-					var u = BASE_URI + '/' + name + '/SINGLE_USER_ROOT_PASSWORD.txt';
-					request(u, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
-						var msg = 'root password';
-						if (err)
-							msg = '[error] ' + msg + ': ' + err.message;
-						else
-							msg += ' "' + txt.trim() + '"';
-						rootpwli.textContent = msg;
-					});
-					*/
 				});
 			}
 
@@ -235,6 +222,11 @@ License: MIT
 				var hash = name_a[3];
 
 				var name_date = [ branch, stamp, hash ].join('-');
+				// Releases newer than 20190425-20190425T015956Z
+				//  will have the git hash at the end.
+				// if (typeof hash !== "undefined") {
+				// 	name_date = name_date + '-' + hash;
+				// }
 
 				// grab the changelog text
 				request(url, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
@@ -264,6 +256,10 @@ License: MIT
 					div.className = 'raw-changelog';
 
 					var newboot_date = new Date('2019-04-10');
+					// If the release is this or older, we need
+					// to figure out what the hash will be for the
+					// filenames because it's not in the dirname.
+					var hash_included_date = new Date('2019-04-25');
 
 					// the release date in relative form
 					var p = document.createElement('p');
@@ -335,7 +331,7 @@ License: MIT
 								var _p = document.createElement('pre');
 								var match;
 
-								// smartos bug
+								// triton bug
 								match = message.match(/^([a-zA-Z]+-[0-9]+):? (.*)$/);
 								if (match) {
 									var bugid = match[1];
@@ -401,11 +397,10 @@ License: MIT
 				var data = {};
 				var current_repo;
 				var current_commit;
-				var lastline;
 				txt.trim().split('\n').forEach(function(line) {
-					// titles have hyphens below them
-					if (line.match(/^------/)) {
-						current_repo = lastline;
+					// titles are prefixed with two hash marks
+					if (line.match(/^## /)) {
+						current_repo = line.match(/^## (.*)/)[1];
 						data[current_repo] = [];
 
 						return;
@@ -413,19 +408,14 @@ License: MIT
 
 					// process commits
 					var match;
-					if (match = line.match(/^commit (.*)$/)) {
+					if (match = line.match(/^([0-9a-f]{7}) - ([A-Z]+-[0-9]+ .*) <(.*)>$/)) {
 						current_commit = data[current_repo].length;
 						data[current_repo][current_commit] = {
 							hash: match[1],
-							message: []
+							message: [match[2]],
+							author: match[3]
 						};
-					} else if (match = line.match(/^Author: (.*)$/)) {
-						data[current_repo][current_commit].author = match[1];
-					} else if (match = line.match(/^    (.*)$/)) {
-						data[current_repo][current_commit].message.push(match[1]);
 					}
-
-					lastline = line;
 				});
 
 				return data;
