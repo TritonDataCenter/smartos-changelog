@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-SmartOS Changelog made pretty
+Triton Changelog made pretty
 
 Author: Dave Eddy <dave@daveeddy.com>
 License: MIT
@@ -8,13 +8,13 @@ License: MIT
 <html lang="en">
 	<head>
 		<meta charset="UTF-8">
-		<title>SmartOS Changelog</title>
+		<title>Triton Changelog</title>
 		<script>
 			// URI (in the case, relative to our domain) where SmartOS releases
 			// are stored in Manta
-			var BASE_URI = '/Joyent_Dev/public/SmartOS';
+			var BASE_URI = '/Joyent_Dev/public/SmartDataCenter';
 
-			// The base repository URL where all repos in the SmartOS Changelogs can be found
+			// The base repository URL where all repos in the Triton Changelogs can be found
 			var BASE_REPO = 'https://github.com/TritonDataCenter';
 
 			// The URIs to use for bug/issue numbers extracted from commit messages
@@ -143,49 +143,49 @@ License: MIT
 			* We pass in name_date and compressed_suffix which are also needed
 			* for the correct link creation.
 			*/
-			function generate_file_links(md5_url, name, name_date, compressed_suffix, ul) {
-				request(md5_url, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
-					var md5_lines = txt.split('\n');
-					var platform_tgz_name = null;
-					for (var i = 0; i < md5_lines.length; i++) {
-						var md5_entry = md5_lines[i].split(' ');
-						if (md5_entry.length === 2 &&
-							md5_entry[1].startsWith('platform') &&
-							md5_entry[1].endsWith('.tgz')) {
-								platform_tgz_name = md5_entry[1];
+			function generate_file_links(release_json, name, name_date, compressed_suffix, ul) {
+				request(release_json, 'GET', undefined, MANTA_HEADERS, function(err, data) {
+					var release_data = JSON.parse(data);
+
+					var files = [];
+					var img_types = [
+						'usb',
+						'coal',
+						'iso',
+						'ipxe'
+					]
+
+					/**
+					 * Parse release.json for downloadable
+					 * images. We only include full HN
+					 * images here. Not gz-tools or boot.
+					 */
+					Object.keys(release_data).forEach(function (k) {
+						if (img_types.indexOf(k) !== -1) {
+							var pad = '       ';
+							if (k.length === 3) {
+								pad = pad + ' ';
 							}
-					}
-					// Since we're parsing the md5sums.txt, we could replace
-					// this effectively static array with something more
-					// bullet-proof, but that might be at the expense of
-					// a prettier download page.
-					[
-						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.iso',
-							name: 'download ISO       smartos-' + name_date + '.iso'
-						},
-						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '-USB.img.' + compressed_suffix,
-							name: 'download USB       smartos-' + name_date + '-USB.img.' + compressed_suffix
-						},
-						{
-							href: BASE_URI + '/' + name + '/smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix,
-							name: 'download VMware    smartos-' + name_date + '.vmwarevm.tar.' + compressed_suffix
-						},
-						{
-							href: BASE_URI + '/' + name + '/' + platform_tgz_name,
-							name: 'download Tarball   ' + platform_tgz_name
-						},
-						null, // spacer
-						{
-							href: BASE_URI + '/' + name + '/index.html',
-							name: 'download page'
-						},
-						{
-							href: BASE_URI + '/' + name + '/changelog.txt',
-							name: 'raw changelog'
+							files.push({
+								href: BASE_URI + '/' + name + '/headnode/' + release_data[k],
+								name: 'download ' + k.toUpperCase() + pad + release_data[k]
+							})
 						}
-					].forEach(function (o) {
+					})
+
+					files.push(null); // spacer
+					// Triton currently doesn't have a download page.
+					// Should we add one?
+					// {
+					// 	href: BASE_URI + '/' + name + '/index.html',
+					// 	name: 'download page'
+					// },
+					files.push({
+						href: BASE_URI + '/' + name + '/changelog.txt',
+						name: 'raw changelog'
+					});
+
+					files.forEach(function (o) {
 						if (o === null) {
 							ul.appendChild(document.createElement('br'));
 							return;
@@ -201,24 +201,11 @@ License: MIT
 						li.appendChild(a);
 						ul.appendChild(li);
 					});
-					// single user root password
-					var rootpwli = document.createElement('li');
-					rootpwli.textContent = 'root password "loading..."';
-					ul.appendChild(rootpwli);
-					var u = BASE_URI + '/' + name + '/SINGLE_USER_ROOT_PASSWORD.txt';
-					request(u, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
-						var msg = 'root password';
-						if (err)
-							msg = '[error] ' + msg + ': ' + err.message;
-						else
-							msg += ' "' + txt.trim() + '"';
-						rootpwli.textContent = msg;
-					});
 				});
 			}
 
 			/**
-			 * Load a SmartOS Changelog given both the name of the release, and
+			 * Load a Triton Changelog given both the name of the release, and
 			 * the URL to the changelog.txt file
 			 *
 			 * This function returns nothing, and creates, basically, the majority
@@ -226,7 +213,18 @@ License: MIT
 			 */
 			function load_changelog(name, url) {
 				// strip off any "-toxic" or release suffix
-				var name_date = name.split('-')[0];
+				var branch_stub, branch_date, name_date, hash;
+				var name_a = name.split('-');
+				var branch = name_a[0] + '-' + name_a[1];
+				var stamp = name_a[2];
+				var hash = name_a[3];
+
+				var name_date = [ branch, stamp, hash ].join('-');
+				// Releases newer than 20190425-20190425T015956Z
+				//  will have the git hash at the end.
+				// if (typeof hash !== "undefined") {
+				// 	name_date = name_date + '-' + hash;
+				// }
 
 				// grab the changelog text
 				request(url, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
@@ -256,12 +254,17 @@ License: MIT
 					div.className = 'raw-changelog';
 
 					var newboot_date = new Date('2019-04-10');
+					// If the release is this or older, we need
+					// to figure out what the hash will be for the
+					// filenames because it's not in the dirname.
+					var hash_included_date = new Date('2019-04-25');
 
 					// the release date in relative form
 					var p = document.createElement('p');
 					// NOTE: javascript doesn't accept YYYYMMDDTHHMMSSZ time format, so we have to use regex
 					// to break it into something `new Date()` accepts
-					var date = new Date(name_date.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1-$2-$3T$4:$5:$6.000Z'));
+					var stamp = name_date.split('-')[2];
+					var date = new Date(stamp.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1-$2-$3T$4:$5:$6.000Z'));
 
 					var compressed_suffix = 'bz2';
 
@@ -280,8 +283,8 @@ License: MIT
 
 					// We determine the platform name by parsing the md5sums
 					// file since these vary by release.
-					var md5_url = BASE_URI + '/' + name + '/md5sums.txt';
-					generate_file_links(md5_url, name, name_date, compressed_suffix, ul);
+					var release_json = BASE_URI + '/' + name + '/headnode/release.json';
+					generate_file_links(release_json, name, name_date, compressed_suffix, ul);
 
 					div.appendChild(ul);
 
@@ -326,7 +329,7 @@ License: MIT
 								var _p = document.createElement('pre');
 								var match;
 
-								// smartos bug
+								// triton bug
 								match = message.match(/^([a-zA-Z]+-[0-9]+):? (.*)$/);
 								if (match) {
 									var bugid = match[1];
@@ -372,7 +375,7 @@ License: MIT
 			}
 
 			/**
-			 * given commits in the format of the smartOS changelog,
+			 * given commits in the format of the Triton Changelog,
 			 * return an object like
 			 * {
 			 *   "repo": [
@@ -392,11 +395,10 @@ License: MIT
 				var data = {};
 				var current_repo;
 				var current_commit;
-				var lastline;
 				txt.trim().split('\n').forEach(function(line) {
-					// titles have hyphens below them
-					if (line.match(/^------/)) {
-						current_repo = lastline;
+					// titles are prefixed with two hash marks
+					if (line.match(/^## /)) {
+						current_repo = line.match(/^## (.*)/)[1];
 						data[current_repo] = [];
 
 						return;
@@ -404,19 +406,14 @@ License: MIT
 
 					// process commits
 					var match;
-					if (match = line.match(/^commit (.*)$/)) {
+					if (match = line.match(/^([0-9a-f]+) - (([A-Z]+-)?[0-9]+:? .*) <(.*)>$/)) {
 						current_commit = data[current_repo].length;
 						data[current_repo][current_commit] = {
 							hash: match[1],
-							message: []
+							message: [match[2]],
+							author: match[4]
 						};
-					} else if (match = line.match(/^Author: (.*)$/)) {
-						data[current_repo][current_commit].author = match[1];
-					} else if (match = line.match(/^    (.*)$/)) {
-						data[current_repo][current_commit].message.push(match[1]);
 					}
-
-					lastline = line;
 				});
 
 				return data;
@@ -687,7 +684,7 @@ License: MIT
 	</head>
 	<body>
 		<div id="top-bar">
-			<h1><a href="" onclick="location.reload();" target="_self">SmartOS Changelog</a></h1>
+			<h1><a href="" onclick="location.reload();" target="_self">Triton Changelog</a></h1>
 			<a href="" onclick="about_div.className = about_div.className ? '' : 'hidden'; return false;">about</a>
 		</div>
 		<div id="content">
@@ -699,8 +696,8 @@ License: MIT
 			</div>
 		</div>
 		<div id="about" class="hidden">
-			<p>This site provides a dynamically updated Changelog for the <a href="http://smartos.org/">SmartOS Operating System</a>.</p>
-			<p>The page is generated by parsing the list of releases located at <a href="https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/">https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/</a>, and then looking for a <code>changelog.txt</code> file to extract the commit messages from.  Commit hashs are automatically linked to the diffs on GitHub, and bug IDs to their respective page on <a href="http://smartos.org/bugview/">http://smartos.org/bugview/</a>.</p>
+			<p>This site provides a dynamically updated Changelog for the <a href="http://tritondatacenter.com/">Triton Data Center</a> cloud platform.</p>
+			<p>The page is generated by parsing the list of releases located at <a href="https://us-east.manta.joyent.com/Joyent_Dev/public/SmartDataCenter/">https://us-east.manta.joyent.com/Joyent_Dev/public/SmartDataCenter/</a>, and then looking for a <code>changelog.txt</code> file to extract the commit messages from.  Commit hashs are automatically linked to the diffs on GitHub, and bug IDs to their respective page on <a href="http://smartos.org/bugview/">http://smartos.org/bugview/</a>.</p>
 			<p>Also, check out <a href="https://chrome.google.com/webstore/detail/manta-directory-listing/ekhnojbkmjgplcpnecfnlbpldcoddahe">this chrome extension</a> to easily browse directories on Manta.  It makes browsing SmartOS (and other) releases through Manta very easy.</p>
 			<small>Source Code: <a href="https://github.com/TritonDataCenter/smartos-changelog">https://github.com/TritonDataCenter/smartos-changelog</a></small><br />
 			<small>Creator: <a href="https://github.com/bahamas10">Dave Eddy &lt;bahamas10&gt;</a></small><br /><br />
