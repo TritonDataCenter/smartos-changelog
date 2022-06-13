@@ -143,51 +143,49 @@ License: MIT
 			* We pass in name_date and compressed_suffix which are also needed
 			* for the correct link creation.
 			*/
-			function generate_file_links(md5_url, name, name_date, compressed_suffix, ul) {
-				request(md5_url, 'GET', undefined, MANTA_HEADERS, function(err, txt) {
-					var md5_lines = txt.split('\n');
-					var platform_tgz_name = null;
-					for (var i = 0; i < md5_lines.length; i++) {
-						var md5_entry = md5_lines[i].split(' ');
-						if (md5_entry.length === 2 &&
-							md5_entry[1].startsWith('platform') &&
-							md5_entry[1].endsWith('.tgz')) {
-								platform_tgz_name = md5_entry[1];
+			function generate_file_links(release_json, name, name_date, compressed_suffix, ul) {
+				request(release_json, 'GET', undefined, MANTA_HEADERS, function(err, data) {
+					var release_data = JSON.parse(data);
+
+					var files = [];
+					var img_types = [
+						'usb',
+						'coal',
+						'iso',
+						'ipxe'
+					]
+
+					/**
+					 * Parse release.json for downloadable
+					 * images. We only include full HN
+					 * images here. Not gz-tools or boot.
+					 */
+					Object.keys(release_data).forEach(function (k) {
+						if (img_types.indexOf(k) !== -1) {
+							var pad = '       ';
+							if (k.length === 3) {
+								pad = pad + ' ';
 							}
-					}
-					// Since we're parsing the md5sums.txt, we could replace
-					// this effectively static array with something more
-					// bullet-proof, but that might be at the expense of
-					// a prettier download page.
-					[
-						{
-							href: BASE_URI + '/' + name + '/headnode/usb-' + name_date + '.t' + compressed_suffix,
-							name: 'download USB       usb-' + name_date + '.t' + compressed_suffix
-						},
-						{
-							href: BASE_URI + '/' + name + '/headnode/coal-' + name_date + '-8gb.t' + compressed_suffix,
-							name: 'download VMware    coal-' + name_date + '-8gb.t' + compressed_suffix
-						},
-						{
-							href: BASE_URI + '/' + name + '/headnode/iso-' + name_date + '.iso',
-							name: 'download ISO       iso-' + name_date + '.iso'
-						},
-						{
-							href: BASE_URI + '/' + name + '/headnode/ipxe-' + name_date + '.t' + compressed_suffix,
-							name: 'download IPXE      ipxe-' + name_date + '.t' + compressed_suffix
-						},
-						null, // spacer
-						// Triton currently doesn't have a download page.
-						// Should we add one?
-						// {
-						// 	href: BASE_URI + '/' + name + '/index.html',
-						// 	name: 'download page'
-						// },
-						{
-							href: BASE_URI + '/' + name + '/changelog.txt',
-							name: 'raw changelog'
+							files.push({
+								href: BASE_URI + '/' + name + '/headnode/' + release_data[k],
+								name: 'download ' + k.toUpperCase() + pad + release_data[k]
+							})
 						}
-					].forEach(function (o) {
+					})
+
+					files.push(null); // spacer
+					// Triton currently doesn't have a download page.
+					// Should we add one?
+					// {
+					// 	href: BASE_URI + '/' + name + '/index.html',
+					// 	name: 'download page'
+					// },
+					files.push({
+						href: BASE_URI + '/' + name + '/changelog.txt',
+						name: 'raw changelog'
+					});
+
+					files.forEach(function (o) {
 						if (o === null) {
 							ul.appendChild(document.createElement('br'));
 							return;
@@ -285,8 +283,8 @@ License: MIT
 
 					// We determine the platform name by parsing the md5sums
 					// file since these vary by release.
-					var md5_url = BASE_URI + '/' + name + '/md5sums.txt';
-					generate_file_links(md5_url, name, name_date, compressed_suffix, ul);
+					var release_json = BASE_URI + '/' + name + '/headnode/release.json';
+					generate_file_links(release_json, name, name_date, compressed_suffix, ul);
 
 					div.appendChild(ul);
 
