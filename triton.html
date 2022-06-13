@@ -406,7 +406,7 @@ License: MIT
 
 					// process commits
 					var match;
-					if (match = line.match(/^([0-9a-f]{7}) - ([A-Z]+-[0-9]+ .*) <(.*)>$/)) {
+					if (match = line.match(/^([0-9a-f]{7}) - ([A-Z]+-[0-9]+:? .*) <(.*)>$/)) {
 						current_commit = data[current_repo].length;
 						data[current_repo][current_commit] = {
 							hash: match[1],
