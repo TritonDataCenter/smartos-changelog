@@ -2,7 +2,7 @@
 
 JavaScript/HTML Page for generating a pretty [SmartOS](http://smartos.org) Changelog.
 
-<https://us-east.manta.joyent.com/Joyent_Dev/public/SmartOS/smartos.html>
+<https://us-central.manta.mnx.io/Joyent_Dev/public/SmartOS/smartos.html>
 
 ## Usage
 
@@ -17,8 +17,8 @@ The following subcommands are available
 ... push/dev             push smartos.html to /${MANTA_USER}/public/smartos-dev.html
 ... diff                 diff smartos.html locally with /${MANTA_USER}/public/smartos.html remotely
 ... diff/dev             diff smartos.html locally with /${MANTA_USER}/public/smartos-dev.html remotely
-... open                 open https://us-east.manta.joyent.com/${MANTA_USER}/public/smartos.html
-... open/dev             open https://us-east.manta.joyent.com/${MANTA_USER}/public/smartos-dev.html
+... open                 open https://us-central.manta.mnx.io/${MANTA_USER}/public/smartos.html
+... open/dev             open https://us-central.manta.mnx.io/${MANTA_USER}/public/smartos-dev.html
 ```
 
 ## License
